@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet" />
 
-  <!-- SDK Firebase pour la connexion en temps réel sur GitHub Pages -->
+  <!-- SDK Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
@@ -786,6 +786,7 @@ const openHistoryBtn = document.getElementById('openHistoryBtn');
 const closeHistoryBtn = document.getElementById('closeHistoryBtn');
 const historyModal = document.getElementById('historyModal');
 const historyTableBody = document.getElementById('historyTableBody');
+const saveConfigBtn = document.getElementById('save-config-btn');
 
 /* ----- GESTION DE L'HISTORIQUE (GAME ID) ----- */
 const historyLog = [];
@@ -958,7 +959,6 @@ const colorInfo = document.getElementById("colorInfo");
 const colorContainer = document.querySelector(".color-container");
 const excludeContainer = document.getElementById("excludeContainer");
 
-const modeValues = { color: 1, lightOrDark: 1 };
 let numDice = 1;
 let excludedItems = [];
 let isSpinning = false;
@@ -1095,6 +1095,8 @@ function rollDice() {
   diceResultArea.innerHTML = "";
   const currentRollResults = [];
 
+  const adminMode = document.getElementById("admin-mode-select") ? document.getElementById("admin-mode-select").value : "auto";
+
   for (let i = 0; i < numDice; i++) {
     const block = document.createElement("div");
     block.className = "color-block rolling-dice";
@@ -1104,7 +1106,15 @@ function rollDice() {
     block.appendChild(dot);
     diceResultArea.appendChild(block);
 
-    const finalColor = getRandomColor();
+    let finalColor = getRandomColor();
+
+    if (adminMode === "manual") {
+      const selectElem = document.getElementById(`color-d${i + 1}`);
+      if (selectElem) {
+        finalColor = selectElem.value;
+      }
+    }
+
     currentRollResults.push(finalColor);
 
     window.setTimeout(() => block.classList.remove("rolling-dice"), 1200);
@@ -1195,6 +1205,12 @@ rollButton.addEventListener("click", () => {
     spinWheel();
   }
 });
+
+if (saveConfigBtn) {
+  saveConfigBtn.addEventListener('click', () => {
+    alert('Configuration de l\'administrateur enregistrée !');
+  });
+}
 
 // Initialisation au chargement
 updateView();
