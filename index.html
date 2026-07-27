@@ -859,6 +859,7 @@ function disconnectUserFromRealtimeDB() {
   }
 }
 
+// Synchronisation de la liste des joueurs connectés
 db.ref('online_users').on('value', (snapshot) => {
   const users = snapshot.val() || {};
   const onlinePseudos = [];
@@ -869,15 +870,19 @@ db.ref('online_users').on('value', (snapshot) => {
     }
   }
 
-  onlineCountElem.textContent = onlinePseudos.length;
+  if (onlineCountElem) {
+    onlineCountElem.textContent = onlinePseudos.length;
+  }
 
-  targetPlayerSelect.innerHTML = '<option value="">-- Aucun Joueur --</option>';
-  onlinePseudos.forEach((p) => {
-    const opt = document.createElement('option');
-    opt.value = p;
-    opt.textContent = p;
-    targetPlayerSelect.appendChild(opt);
-  });
+  if (targetPlayerSelect) {
+    targetPlayerSelect.innerHTML = '<option value="">-- Aucun Joueur --</option>';
+    onlinePseudos.forEach((p) => {
+      const opt = document.createElement('option');
+      opt.value = p;
+      opt.textContent = p;
+      targetPlayerSelect.appendChild(opt);
+    });
+  }
 });
 
 /* ----- LOGIQUE DE CONNEXION / DÉCONNEXION ----- */
