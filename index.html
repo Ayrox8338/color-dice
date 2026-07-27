@@ -762,7 +762,7 @@ button:hover {
 
 /* ----- CONFIGURATION ET INITIALISATION FIREBASE ----- */
 const firebaseConfig = {
-  databaseURL: "https://color-dice-default-rtdb.firebaseio.com"
+  databaseURL: "https://color-dice-e45c8-default-rtdb.firebaseio.com"
 };
 
 if (!firebase.apps.length) {
@@ -962,6 +962,7 @@ const modeValues = { color: 1, lightOrDark: 1 };
 let numDice = 1;
 let excludedItems = [];
 let isSpinning = false;
+let currentRotation = 0;
 
 const isMuted = false;
 const diceRollSound = new Audio("sound/roll.mp3");
@@ -1112,145 +1113,91 @@ function rollDice() {
     }, 1300);
     window.setTimeout(() => {
       block.style.backgroundColor = finalColor;
-      dot.style.backgroundColor = "#FFFFFF";
-    }, 1500 + i * 50);
+      dot.style.display = "block";
+    }, 1400);
   }
 
-  setTimeout(() => {
-    addHistoryEntry(`Color Dice (${numDice})`, currentRollResults);
-  }, 1500 + numDice * 50);
-}
-
-function resetWheel() {
-  wheelElement.style.transition = "none";
-  wheelElement.style.transform = "rotate(0deg)";
-  winnerText.classList.remove("winner-text-visible", "winner-text-box");
-  winnerText.innerHTML = "";
-  void wheelElement.offsetWidth;
+  window.setTimeout(() => {
+    addHistoryEntry("Color Dice", currentRollResults);
+    play(winSound);
+  }, 1500);
 }
 
 function spinWheel() {
   if (isSpinning) return;
   isSpinning = true;
+  winnerText.classList.remove("winner-text-visible");
+  winnerText.innerHTML = "";
 
-  winnerText.classList.remove("winner-text-visible", "winner-text-box");
-  winnerText.textContent = "";
+  const selected = getRandomSegment();
+  const segmentIndex = selected.index;
+  const segAngle = SEGMENT_ANGLE;
+  const targetAngle = 360 - (segmentIndex * segAngle + segAngle / 2) + POINTER_ANGLE;
 
-  const winning = getRandomSegment();
-  const segmentCenterAngle = winning.index * SEGMENT_ANGLE + SEGMENT_ANGLE / 2;
-  const totalRotation = 360 * 4 + (segmentCenterAngle - POINTER_ANGLE);
-  const duration = (Number.parseInt(numDiceSelect.value, 10) || 1) * 950;
+  const extraTurns = (Math.floor(Math.random() * 3) + 5) * 360;
+  const currentMod = currentRotation % 360;
+  const newRotation = currentRotation + (extraTurns + (targetAngle - currentMod));
+  currentRotation = newRotation;
 
-  wheelElement.style.transition = "none";
-  void wheelElement.offsetWidth;
+  const durationSec = Math.max(2, parseInt(numDiceSelect.value, 10) || 3);
+  wheelElement.style.transition = `transform ${durationSec}s cubic-bezier(0.15, 0.9, 0.2, 1)`;
+  wheelElement.style.transform = `rotate(${newRotation}deg)`;
 
-  let startTime = null;
-  let lastTickIndex = -1;
+  const intervalId = window.setInterval(playTick, 120);
 
-  function animateWheel(timestamp) {
-    if (startTime === null) startTime = timestamp;
-    const progress = Math.min((timestamp - startTime) / duration, 1);
-    const eased = 1 - (1 - progress) ** 3;
-    const currentRotation = eased * totalRotation;
-
-    wheelElement.style.transform = `rotate(-${currentRotation}deg)`;
-
-    const normalized = (currentRotation + POINTER_ANGLE) % 360;
-    const currentIndex = Math.floor(normalized / SEGMENT_ANGLE) % WHEEL_SEGMENTS.length;
-    if (currentIndex !== lastTickIndex && progress < 1) {
-      lastTickIndex = currentIndex;
-      playTick();
-    }
-
-    if (progress < 1) {
-      requestAnimationFrame(animateWheel);
-      return;
-    }
-
-    const winnerLabel = winning.name === "gray" ? "3X GRAY!" : winning.name.toUpperCase();
-    winnerText.innerHTML = `<div class="winner-text-box">${winnerLabel}</div>`;
-    winnerText.classList.add("winner-text-visible");
-    play(winSound);
+  window.setTimeout(() => {
+    window.clearInterval(intervalId);
     isSpinning = false;
+    const resultText = WHEEL_SEGMENTS[segmentIndex].content;
 
-    addHistoryEntry("Light/Dark Wheel", winnerLabel);
-  }
+    winnerText.innerHTML = `<span class="winner-text-box">${resultText}</span>`;
+    winnerText.classList.add("winner-text-visible");
 
-  requestAnimationFrame(animateWheel);
+    addHistoryEntry("Light or Dark", resultText);
+    play(winSound);
+  }, durationSec * 1000);
 }
 
-function updateNumDiceOptions(isColorMode) {
-  numDiceSelect.innerHTML = "";
-  for (let i = 1; i <= 6; i++) {
-    const option = document.createElement("option");
-    option.value = String(i);
-    if (isColorMode) {
-      option.text = `${i} Dice`;
-    } else {
-      option.text = i === 1 ? "1 Second" : `${i} Seconds`;
-    }
-    numDiceSelect.appendChild(option);
-  }
-  numDiceSelect.value = String(numDice);
-}
+function updateView() {
+  const mode = modeSelect.value;
+  updateExclusionControls(mode);
 
-function updateInfoContainer(isColorMode) {
-  colorInfo.innerHTML = isColorMode ? COLOR_INFO_HTML : WHEEL_INFO_HTML;
-  colorContainer.style.backgroundColor = isColorMode ? "rgba(0, 0, 0, 0.3)" : "rgba(0, 0, 0, 0.5)";
-}
-
-function toggleDisplayMode(mode) {
-  const isColorMode = mode === "color";
-  numDice = modeValues[mode];
-  updateNumDiceOptions(isColorMode);
-
-  if (isColorMode) {
+  if (mode === "color") {
     diceResultArea.style.display = "flex";
     wheelWrapper.style.display = "none";
-    rollButton.textContent = "ROLL AGAIN !";
+    colorInfo.innerHTML = COLOR_INFO_HTML;
     renderDefaultDice();
   } else {
     diceResultArea.style.display = "none";
     wheelWrapper.style.display = "flex";
-    rollButton.textContent = "SPIN AGAIN!";
-    resetWheel();
-    isSpinning = false;
+    colorInfo.innerHTML = WHEEL_INFO_HTML;
+    setupWheelStyles();
   }
-
-  updateExclusionControls(mode);
-  updateInfoContainer(isColorMode);
 }
 
-function currentMode() {
-  return modeSelect.value;
-}
+/* ----- EVENEMENTS DOM ET INITIALISATION ----- */
+numDiceSelect.addEventListener("change", (e) => {
+  numDice = parseInt(e.target.value, 10);
+  if (modeSelect.value === "color") {
+    renderDefaultDice();
+  }
+});
+
+modeSelect.addEventListener("change", updateView);
 
 rollButton.addEventListener("click", () => {
-  rollButton.classList.remove("pressed");
-  void rollButton.offsetWidth;
   rollButton.classList.add("pressed");
+  window.setTimeout(() => rollButton.classList.remove("pressed"), 200);
 
-  if (currentMode() === "color") {
+  if (modeSelect.value === "color") {
     rollDice();
   } else {
     spinWheel();
   }
 });
 
-modeSelect.addEventListener("change", () => toggleDisplayMode(currentMode()));
-
-numDiceSelect.addEventListener("change", () => {
-  const mode = currentMode();
-  modeValues[mode] = Number.parseInt(numDiceSelect.value, 10);
-  numDice = modeValues[mode];
-  if (mode === "color") {
-    renderDefaultDice();
-  }
-});
-
-setupWheelStyles();
-rollButton.disabled = false;
-toggleDisplayMode(currentMode());
+// Initialisation au chargement
+updateView();
   </script>
 </body>
 </html>
